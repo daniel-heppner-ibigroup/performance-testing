@@ -11,5 +11,12 @@
   "license": "ISC",
   "devDependencies": {
     "@biomejs/biome": "1.8.3"
-  }
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1652.0"
+  },
+  "trustedDependencies": [
+    "@biomejs/biome",
+    "aws-sdk"
+  ]
 }
