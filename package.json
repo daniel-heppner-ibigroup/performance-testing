@@ -1,19 +1,21 @@
 {
-	"name": "performance-testing",
-	"version": "1.0.0",
-	"description": "",
-	"main": "index.js",
-	"scripts": {
-		"format": "biome format --write *"
-	},
-	"keywords": [],
-	"author": "",
-	"license": "ISC",
-	"devDependencies": {
-		"@biomejs/biome": "1.8.3"
-	},
-	"dependencies": {
-		"@aws-sdk/client-ec2": "^3.606.0"
-	},
-	"trustedDependencies": ["@biomejs/biome", "aws-sdk"]
+  "name": "performance-testing",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "format": "biome format --write *"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@biomejs/biome": "1.8.3",
+    "@types/bun": "^1.1.6"
+  },
+  "dependencies": {
+    "@aws-sdk/client-ec2": "^3.606.0",
+    "consola": "^3.2.3"
+  },
+  "trustedDependencies": ["@biomejs/biome", "aws-sdk"]
 }

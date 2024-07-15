@@ -3,36 +3,49 @@ import {
 	RunInstancesCommand,
 	DescribeInstancesCommand,
 	TerminateInstancesCommand,
-	WaiterConfiguration,
 	waitUntilInstanceRunning,
 	waitUntilInstanceTerminated,
-	RunInstancesCommandInput,
+	type RunInstancesCommandInput,
+	type Instance,
 } from "@aws-sdk/client-ec2";
-const { exec } = require("child_process");
-const fs = require("fs");
 
 // Configuration
-const AMI_ID = "ami-0c55b159cbfafe1f0"; // Example AMI, replace with your own
+const AMI_ID_X86 = "ami-04a81a99f5ec58529";
+const AMI_ID_ARM = "ami-0c14ff330901e49ff";
 const INSTANCE_TYPE = "t2.micro";
-const KEY_NAME = "your-key-pair";
-const SECURITY_GROUP = "your-security-group";
-const REGION = "us-west-2";
-const ANSIBLE_PLAYBOOK_PATH = "path/to/your/playbook.yml";
-const K6_SCRIPT_PATH = "path/to/your/load_test.js";
+const KEY_NAME = "transit-data-team";
+const SECURITY_GROUP = "sg-063fd6aeccd3a5c0e";
+const REGION = "us-east-1";
+const SUBNET_ID = "subnet-012742316147064d3";
+const ANSIBLE_PLAYBOOK_PATH = "setup_otp.yml";
+const K6_SCRIPT_PATH = "../k6/script.js";
 const RESULTS_FILE = "k6_results.json";
+const INSTANCE_NAME = "OTP Performance Testing Server"; // Replace with your desired name
 
 // Initialize AWS SDK v3 client
 const client = new EC2Client({ region: REGION });
 
 // Create a new EC2 instance
-async function createEC2Instance() {
+async function createEC2Instance(): Promise<Instance | undefined> {
 	const params: RunInstancesCommandInput = {
-		ImageId: AMI_ID,
+		ImageId: AMI_ID_X86,
 		InstanceType: INSTANCE_TYPE,
 		MinCount: 1,
 		MaxCount: 1,
 		KeyName: KEY_NAME,
-		SecurityGroups: [SECURITY_GROUP],
+		SecurityGroupIds: [SECURITY_GROUP],
+		SubnetId: SUBNET_ID,
+		TagSpecifications: [
+            {
+                ResourceType: "instance",
+                Tags: [
+                    {
+                        Key: "Name",
+                        Value: INSTANCE_NAME
+                    }
+                ]
+            }
+        ]
 	};
 
 	const command = new RunInstancesCommand(params);
@@ -91,51 +104,50 @@ async function terminateEC2Instance(instanceId) {
 }
 
 // Run Ansible playbook
-function runAnsible(instanceIp) {
-	return new Promise((resolve, reject) => {
-		const command = `ansible-playbook ${ANSIBLE_PLAYBOOK_PATH} -i ${instanceIp}, --private-key ${KEY_NAME}.pem -u ec2-user`;
-		exec(command, (error, stdout, stderr) => {
-			console.log(stdout);
-			console.error(stderr);
-			if (error) {
-				return reject(error);
-			}
-			resolve();
-		});
-	});
+async function runAnsible(instanceIp) {
+	const proc = Bun.spawn([
+		"ansible-playbook",
+		ANSIBLE_PLAYBOOK_PATH,
+		"-i",
+		instanceIp,
+		"--private-key",
+		`${KEY_NAME}.pem`,
+		"-u",
+		"ec2-user",
+	]);
+
+	await proc.exited;
 }
 
 // Run k6 test
-function runK6Test() {
-	return new Promise((resolve, reject) => {
-		const command = `k6 run ${K6_SCRIPT_PATH} --out json=${RESULTS_FILE}`;
-		exec(command, (error, stdout, stderr) => {
-			console.log(stdout);
-			console.error(stderr);
-			if (error) {
-				return reject(error);
-			}
-			resolve();
-		});
-	});
+async function runK6Test() {
+	const proc = Bun.spawn([
+		"k6",
+		"run",
+		K6_SCRIPT_PATH,
+		"--out",
+		`json=${RESULTS_FILE}`,
+	]);
+	await proc.exited;
 }
 
 // Main workflow
 async function main() {
-	let instance;
+	let instance: Instance | undefined;
 	try {
 		instance = await createEC2Instance();
-		const instanceIp = instance.PublicIpAddress;
+		const instanceIp = instance?.PublicIpAddress;
 
-		console.log("Running Ansible playbook...");
-		await runAnsible(instanceIp);
+		// console.log("Running Ansible playbook...");
+		// await runAnsible(instanceIp);
 
-		console.log("Running k6 test...");
-		await runK6Test();
+		// console.log("Running k6 test...");
+		// await runK6Test();
 
 		console.log("Recording results...");
-		const results = JSON.parse(fs.readFileSync(RESULTS_FILE));
-		console.log(JSON.stringify(results, null, 2));
+		// const file = Bun.file(RESULTS_FILE);
+		// const results = JSON.parse(await file.text());
+		// console.log(JSON.stringify(results, null, 2));
 	} catch (error) {
 		console.error("An error occurred:", error);
 	} finally {

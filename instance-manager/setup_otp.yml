@@ -1,0 +1,88 @@
+---
+- name: Set up OpenTripPlanner on EC2
+  hosts: all
+  become: yes
+  vars:
+    s3_bucket: "your-s3-bucket-name"
+    otp_jar: "otp-2.2.0-shaded.jar"
+    graph_file: "graph.obj"
+    config_file: "router-config.json"
+    otp_directory: "/opt/otp"
+
+  tasks:
+    - name: Update and upgrade apt packages
+      apt:
+        upgrade: yes
+        update_cache: yes
+        cache_valid_time: 86400 #One day
+
+    - name: Install required packages
+      apt:
+        pkg:
+          - openjdk-11-jre-headless
+          - awscli
+        state: present
+
+    - name: Create OTP directory
+      file:
+        path: "{{ otp_directory }}"
+        state: directory
+        mode: '0755'
+
+    - name: Download OTP JAR from S3
+      aws_s3:
+        bucket: "{{ s3_bucket }}"
+        object: "{{ otp_jar }}"
+        dest: "{{ otp_directory }}/{{ otp_jar }}"
+        mode: get
+
+    - name: Download graph file from S3
+      aws_s3:
+        bucket: "{{ s3_bucket }}"
+        object: "{{ graph_file }}"
+        dest: "{{ otp_directory }}/{{ graph_file }}"
+        mode: get
+
+    - name: Download config file from S3
+      aws_s3:
+        bucket: "{{ s3_bucket }}"
+        object: "{{ config_file }}"
+        dest: "{{ otp_directory }}/{{ config_file }}"
+        mode: get
+
+    - name: Create OTP service file
+      copy:
+        dest: /etc/systemd/system/otp.service
+        content: |
+          [Unit]
+          Description=OpenTripPlanner
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=root
+          WorkingDirectory={{ otp_directory }}
+          ExecStart=/usr/bin/java -Xmx2G -jar {{ otp_jar }} --load {{ graph_file }} --router default --server
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Start OTP service
+      systemd:
+        name: otp
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    - name: Wait for OTP to start
+      wait_for:
+        port: 8080
+        delay: 10
+
+    - name: Check if OTP is running
+      uri:
+        url: http://localhost:8080
+        method: GET
+      register: otp_status
+      failed_when: otp_status.status != 200
