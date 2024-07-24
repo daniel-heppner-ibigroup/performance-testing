@@ -1,88 +1,58 @@
 ---
-- name: Set up OpenTripPlanner on EC2
+- name: Set up OpenTripPlanner on Ubuntu EC2
   hosts: all
-  become: yes
+  become: yes  # This allows Ansible to use sudo
   vars:
-    s3_bucket: "your-s3-bucket-name"
-    otp_jar: "otp-2.2.0-shaded.jar"
-    graph_file: "graph.obj"
-    config_file: "router-config.json"
-    otp_directory: "/opt/otp"
+    java_package: openjdk-11-jdk  # Adjust version as needed
+    s3_bucket: your-s3-bucket-name
+    otp_jar_path: /opt/otp/otp.jar
+    otp_graph_path: /opt/otp/graph.obj
+    otp_config_path: /opt/otp/config.json
 
   tasks:
-    - name: Update and upgrade apt packages
+    - name: Update apt cache
       apt:
-        upgrade: yes
         update_cache: yes
-        cache_valid_time: 86400 #One day
 
-    - name: Install required packages
+    - name: Install Java
+      apt:
+        name: "{{ java_package }}"
+        state: present
+    - name: Install pip
       apt:
         pkg:
-          - openjdk-11-jre-headless
-          - awscli
-        state: present
+        - python3-boto3
+        - python3-full
+        - python3-botocore
 
     - name: Create OTP directory
       file:
-        path: "{{ otp_directory }}"
+        path: /opt/otp
         state: directory
         mode: '0755'
 
     - name: Download OTP JAR from S3
-      aws_s3:
+      amazon.aws.s3_object:
         bucket: "{{ s3_bucket }}"
-        object: "{{ otp_jar }}"
-        dest: "{{ otp_directory }}/{{ otp_jar }}"
+        object: /server/otp.jar
+        dest: "{{ otp_jar_path }}"
         mode: get
 
-    - name: Download graph file from S3
-      aws_s3:
+    - name: Download OTP graph from S3
+      amazon.aws.s3_object:
         bucket: "{{ s3_bucket }}"
-        object: "{{ graph_file }}"
-        dest: "{{ otp_directory }}/{{ graph_file }}"
+        object: /server/graph.obj
+        dest: "{{ otp_graph_path }}"
         mode: get
 
-    - name: Download config file from S3
-      aws_s3:
+    - name: Download OTP config from S3
+      amazon.aws.s3_object:
         bucket: "{{ s3_bucket }}"
-        object: "{{ config_file }}"
-        dest: "{{ otp_directory }}/{{ config_file }}"
+        object: /server/config.json
+        dest: "{{ otp_config_path }}"
         mode: get
 
-    - name: Create OTP service file
-      copy:
-        dest: /etc/systemd/system/otp.service
-        content: |
-          [Unit]
-          Description=OpenTripPlanner
-          After=network.target
-
-          [Service]
-          Type=simple
-          User=root
-          WorkingDirectory={{ otp_directory }}
-          ExecStart=/usr/bin/java -Xmx2G -jar {{ otp_jar }} --load {{ graph_file }} --router default --server
-          Restart=on-failure
-
-          [Install]
-          WantedBy=multi-user.target
-
-    - name: Start OTP service
-      systemd:
-        name: otp
-        state: started
-        enabled: yes
-        daemon_reload: yes
-
-    - name: Wait for OTP to start
-      wait_for:
-        port: 8080
-        delay: 10
-
-    - name: Check if OTP is running
-      uri:
-        url: http://localhost:8080
-        method: GET
-      register: otp_status
-      failed_when: otp_status.status != 200
+    - name: Start OTP server
+      shell: java -Xmx2G -jar {{ otp_jar_path }} --graphs {{ otp_graph_path }} --router default
+      async: 1000
+      poll: 0

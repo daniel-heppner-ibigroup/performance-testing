@@ -4,7 +4,7 @@
   languages.javascript.enable = true;
 
   # https://devenv.sh/packages/
-  packages = [ pkgs.bun pkgs.k6 pkgs.awscli2 ];
+  packages = [ pkgs.bun pkgs.k6 pkgs.awscli2 pkgs.ansible ];
 
   # https://devenv.sh/scripts/
   scripts.hello.exec = "k6";

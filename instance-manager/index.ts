@@ -33,8 +33,6 @@ async function createEC2Instance(): Promise<Instance | undefined> {
 		MinCount: 1,
 		MaxCount: 1,
 		KeyName: KEY_NAME,
-		SecurityGroupIds: [SECURITY_GROUP],
-		SubnetId: SUBNET_ID,
 		TagSpecifications: [
             {
                 ResourceType: "instance",
@@ -42,8 +40,21 @@ async function createEC2Instance(): Promise<Instance | undefined> {
                     {
                         Key: "Name",
                         Value: INSTANCE_NAME
-                    }
+                    },
+					{
+						Key: "ibi:team-name",
+						Value: "otp-dt"
+					}
                 ]
+            }
+        ],
+		NetworkInterfaces: [
+            {
+                AssociatePublicIpAddress: true,
+                DeviceIndex: 0,
+                DeleteOnTermination: true,
+                SubnetId: SUBNET_ID,
+                Groups: [SECURITY_GROUP]
             }
         ]
 	};
@@ -113,7 +124,7 @@ async function runAnsible(instanceIp) {
 		"--private-key",
 		`${KEY_NAME}.pem`,
 		"-u",
-		"ec2-user",
+		"ubuntu",
 	]);
 
 	await proc.exited;
@@ -152,8 +163,8 @@ async function main() {
 		console.error("An error occurred:", error);
 	} finally {
 		if (instance) {
-			console.log("Terminating instance...");
-			await terminateEC2Instance(instance.InstanceId);
+			// console.log("Terminating instance...");
+			// await terminateEC2Instance(instance.InstanceId);
 		}
 	}
 }
