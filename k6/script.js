@@ -1,32 +1,17 @@
-import { graphqlRequest } from "./graphql.js"; // Adjust the path as needed
+import presets from "./presets.js";
 import { sleep } from "k6";
-import modes from "./modes.js";
-import locations from "./locations.js";
-import planQuery from "./planQuery.js";
+import { runPreset } from "./queries.js";
 
-export let options = {
+export const options = {
 	vus: 1,
-	duration: "10s",
+	duration: "5m",
+	thresholds: {
+		'http_req_failed': [{ threshold: 'rate < 0.01', abortOnFail: true, delayAbortEval: '1m' }],  // Error rate should be less than 10%
+	},
 };
 
-const url =
-	"https://hopelink-qa-otp.ibi-transit.com/otp/routers/default/index/graphql";
-
-function makePlanRequest(fromPlace, toPlace, modes) {
-	const variables = {
-		fromPlace,
-		modes,
-		toPlace,
-		arriveBy: false,
-		banned: {},
-		date: "2024-07-02",
-		numItineraries: 8,
-		time: "11:27",
-	};
-	graphqlRequest(url, planQuery, variables);
-}
 
 export default function () {
-	makePlanRequest(locations.bellevue, locations.capitolHill, modes.bike);
+	runPreset(presets.hopelinkStressTest);
 	sleep(1);
 }
