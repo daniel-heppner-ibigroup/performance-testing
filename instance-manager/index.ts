@@ -21,6 +21,7 @@ const ANSIBLE_PLAYBOOK_PATH = "setup_otp.yml";
 const K6_SCRIPT_PATH = "../k6/script.js";
 const RESULTS_FILE = "k6_results.json";
 const INSTANCE_NAME = "OTP Performance Testing Server"; // Replace with your desired name
+const IAM_ROLE_NAME = "OTPPerformanceTesting_InstanceRunner";
 
 // Initialize AWS SDK v3 client
 const client = new EC2Client({ region: REGION });
@@ -56,7 +57,11 @@ async function createEC2Instance(): Promise<Instance | undefined> {
                 SubnetId: SUBNET_ID,
                 Groups: [SECURITY_GROUP]
             }
-        ]
+        ],
+        // Use the IAM role name directly
+        IamInstanceProfile: {
+            Name: IAM_ROLE_NAME
+        }
 	};
 
 	const command = new RunInstancesCommand(params);

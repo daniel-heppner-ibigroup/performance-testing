@@ -4,10 +4,11 @@
   become: yes  # This allows Ansible to use sudo
   vars:
     java_package: openjdk-11-jdk  # Adjust version as needed
-    s3_bucket: your-s3-bucket-name
+    s3_bucket: ibi-snap
     otp_jar_path: /opt/otp/otp.jar
     otp_graph_path: /opt/otp/graph.obj
-    otp_config_path: /opt/otp/config.json
+    otp_config_path: /opt/otp/otp-config.json
+    otp_router_path: /opt/otp/router-config.json
 
   tasks:
     - name: Update apt cache
@@ -34,25 +35,43 @@
     - name: Download OTP JAR from S3
       amazon.aws.s3_object:
         bucket: "{{ s3_bucket }}"
-        object: /server/otp.jar
+        object: /otp-config/otp.jar
         dest: "{{ otp_jar_path }}"
         mode: get
 
     - name: Download OTP graph from S3
       amazon.aws.s3_object:
         bucket: "{{ s3_bucket }}"
-        object: /server/graph.obj
+        object: /otp-config/graph.obj
         dest: "{{ otp_graph_path }}"
         mode: get
 
     - name: Download OTP config from S3
       amazon.aws.s3_object:
         bucket: "{{ s3_bucket }}"
-        object: /server/config.json
+        object: /otp-config/otp-config.json
         dest: "{{ otp_config_path }}"
         mode: get
 
-    - name: Start OTP server
-      shell: java -Xmx2G -jar {{ otp_jar_path }} --graphs {{ otp_graph_path }} --router default
-      async: 1000
-      poll: 0
+    - name: Download router config from S3
+      amazon.aws.s3_object:
+        bucket: "{{ s3_bucket }}"
+        object: /otp-config/router-config.json
+        dest: "{{ otp_config_path }}"
+        mode: get
+
+    - name: Create OTP systemd service file
+      template:
+        src: otp.service.j2
+        dest: /etc/systemd/system/otp.service
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Restart OTP
+
+    - name: Enable and start OTP service
+      systemd:
+        name: otp
+        enabled: yes
+        state: started
+        daemon_reload: yes
