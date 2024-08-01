@@ -1,0 +1,15 @@
+[Unit]
+Description=OpenTripPlanner Service
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/java -XX:+UseContainerSupport -XX:MaxRAMPercentage=80.0 -jar {{ otp_jar_path }} --load --serve {{ otp_directory }}
+WorkingDirectory=/opt/otp
+User=root
+Group=root
+Type=simple
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

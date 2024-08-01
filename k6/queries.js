@@ -18,7 +18,7 @@ function createPlanRequestsFromPreset(preset) {
 		};
 		reqs.push({
 			method: "POST",
-			url: preset.url,
+			url: __ENV.URL,
 			body: JSON.stringify({
 				variables,
 				query,
@@ -49,6 +49,7 @@ export function runPreset(preset) {
 		allPass = allPass && check(responseBody, {
 			"no graphql errors": (r) => !r.errors,
 			"no routing errors": (r) => !r.plan.routingErrors.length > 0,
+			"has itineraries": (r) => r.plan.itineraries.length > 0
 		});
 		if (responseBody.plan.itineraries.length === 0) {
 			console.warn("No itineraries for modes:", requestVariables.modes);
@@ -60,6 +61,7 @@ export function runPreset(preset) {
 			console.error("Rounting errors");
 			console.error(responseBody.plan.routingErrors);
 		}
+		console.log("Ran for", requestVariables.modes, "received", responseBody.plan.itineraries.length, "itineraries.")
 	}
     return allPass
 }

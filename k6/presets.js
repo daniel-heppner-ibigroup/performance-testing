@@ -3,7 +3,6 @@ import modes from "./modes.js";
 
 export default {
     hopelinkStressTest: {
-        url: "http://personal-linux:8080/otp/gtfs/v1",
         from: locations.everettStation,
         to: locations.pioneerSquare,
         combinations: [
@@ -16,7 +15,6 @@ export default {
             modes.transitAndFlexDirectAccess,
             modes.transitAndFlexDirectEgress,
             modes.transit,
-            modes.walk
         ]
     }
 }

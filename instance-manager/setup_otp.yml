@@ -3,8 +3,9 @@
   hosts: all
   become: yes  # This allows Ansible to use sudo
   vars:
-    java_package: openjdk-11-jdk  # Adjust version as needed
+    java_package: openjdk-21-jdk  # Adjust version as needed
     s3_bucket: ibi-snap
+    otp_directory: /opt/otp
     otp_jar_path: /opt/otp/otp.jar
     otp_graph_path: /opt/otp/graph.obj
     otp_config_path: /opt/otp/otp-config.json
@@ -26,6 +27,11 @@
         - python3-full
         - python3-botocore
 
+    - name: Install Python packaging module
+      pip:
+        name: packaging
+        state: present
+
     - name: Create OTP directory
       file:
         path: /opt/otp
@@ -35,29 +41,29 @@
     - name: Download OTP JAR from S3
       amazon.aws.s3_object:
         bucket: "{{ s3_bucket }}"
-        object: /otp-config/otp.jar
+        object: otp-config/otp.jar
         dest: "{{ otp_jar_path }}"
         mode: get
 
     - name: Download OTP graph from S3
       amazon.aws.s3_object:
         bucket: "{{ s3_bucket }}"
-        object: /otp-config/graph.obj
+        object: otp-config/graph.obj
         dest: "{{ otp_graph_path }}"
         mode: get
 
     - name: Download OTP config from S3
       amazon.aws.s3_object:
         bucket: "{{ s3_bucket }}"
-        object: /otp-config/otp-config.json
+        object: otp-config/otp-config.json
         dest: "{{ otp_config_path }}"
         mode: get
 
     - name: Download router config from S3
       amazon.aws.s3_object:
         bucket: "{{ s3_bucket }}"
-        object: /otp-config/router-config.json
-        dest: "{{ otp_config_path }}"
+        object: otp-config/router-config.json
+        dest: "{{ otp_router_path }}"
         mode: get
 
     - name: Create OTP systemd service file
@@ -67,11 +73,15 @@
         owner: root
         group: root
         mode: '0644'
-      notify: Restart OTP
 
     - name: Enable and start OTP service
-      systemd:
+      ansible.builtin.systemd_service:
         name: otp
         enabled: yes
         state: started
         daemon_reload: yes
+
+    - name: Wait for OTP server to become available
+      ansible.builtin.wait_for:
+        port: 8080
+        delay: 10
