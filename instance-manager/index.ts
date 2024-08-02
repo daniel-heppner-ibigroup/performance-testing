@@ -9,6 +9,7 @@ import {
 	type Instance,
 	_InstanceType,
 } from "@aws-sdk/client-ec2";
+import { getInstanceInfo } from "./instancePricing";
 
 // Configuration
 const AMI_ID_X86 = "ami-04a81a99f5ec58529";
@@ -29,8 +30,10 @@ const client = new EC2Client({ region: REGION });
 const headers = [
 	"time",
 	"instance_type",
+	"memory",
+	"vcpus",
+	"onDemandPrice",
 	"vus",
-	"duration",
 	"avg_http_req_duration",
 	"p90_http_req_duration",
 	"p95_http_req_duration",
@@ -38,6 +41,7 @@ const headers = [
 const resultsFileWriter = Bun.file("results.csv").writer();
 resultsFileWriter.write(headers);
 resultsFileWriter.write("\n");
+
 // Bun server for receiving k6 datares
 const server = Bun.serve({
 	port: 3000,
@@ -45,10 +49,14 @@ const server = Bun.serve({
 		if (req.method === "POST" && new URL(req.url).pathname === "/append-csv") {
 			const { summary, timestamp, instanceType } = await req.json();
 			const { metrics, vus } = summary;
+			const instanceInfo = await getInstanceInfo(instanceType);
 			const csvLine = [
 				timestamp,
 				instanceType,
 				vus,
+				instanceInfo?.memory,
+				instanceInfo?.vcpus,
+				instanceInfo?.onDemandPrice,
 				metrics.http_req_duration.values.avg,
 				metrics.http_req_duration.values["p(90)"],
 				metrics.http_req_duration.values["p(95)"],
@@ -222,19 +230,17 @@ async function runK6Test(url: string, instanceType: string) {
 }
 
 // Main workflow
-async function main() {
+async function main(instanceType: _InstanceType) {
 	let instance: Instance | undefined;
 	try {
-		const instanceType: _InstanceType = "c7a.2xlarge";
-		// instance = await createEC2Instance(instanceType);
-		// const instanceIp = instance?.PublicIpAddress;
-		const instanceIp = "34.238.139.62";
+		instance = await createEC2Instance(instanceType);
+		const instanceIp = instance?.PublicIpAddress;
 
 		console.log("Waiting for instance to complete boot process...");
-		// await new Promise((resolve) => setTimeout(resolve, 30000)); // 30 second delay
+		await new Promise((resolve) => setTimeout(resolve, 30000)); // 30 second delay
 
 		console.log("Running Ansible playbook...");
-		// await runAnsible(instanceIp);
+		await runAnsible(instanceIp);
 
 		console.log("Running k6 test...");
 		const url = `http://${instanceIp}:8080/otp/gtfs/v1`;
@@ -243,12 +249,13 @@ async function main() {
 		console.error("An error occurred:", error);
 	} finally {
 		if (instance) {
-			// console.log("Terminating instance...");
-			// await terminateEC2Instance(instance.InstanceId);
+			console.log("Terminating instance...");
+			await terminateEC2Instance(instance.InstanceId);
 		}
 		server.stop();
 		console.log("Webserver stopped");
 	}
 }
 
-main();
+main("c7a.2xlarge");
+// main("r5d.2xlarge");

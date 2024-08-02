@@ -7,8 +7,8 @@ const RESULTS_URL = __ENV.RESULTS_URL;
 const INSTANCE_TYPE = __ENV.INSTANCE_TYPE;
 
 export const options = {
-	vus: 2,
-	duration: "30s",
+	vus: 1,
+	duration: "5m",
 	thresholds: {
 		http_req_failed: [
 			{ threshold: "rate < 0.01", abortOnFail: true, delayAbortEval: "1m" },

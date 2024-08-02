@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "@aws-sdk/client-ec2": "^3.606.0",
-    "consola": "^3.2.3"
+    "consola": "^3.2.3",
+    "csv-parse": "^5.5.6"
   },
   "trustedDependencies": ["@biomejs/biome", "aws-sdk"]
 }
