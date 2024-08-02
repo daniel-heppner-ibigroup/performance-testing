@@ -20,17 +20,12 @@
       apt:
         name: "{{ java_package }}"
         state: present
-    - name: Install pip
+    - name: Install Python
       apt:
         pkg:
         - python3-boto3
         - python3-full
         - python3-botocore
-
-    - name: Install Python packaging module
-      pip:
-        name: packaging
-        state: present
 
     - name: Create OTP directory
       file:

@@ -182,7 +182,7 @@ async function runK6Test(url: string, instanceType: string) {
 async function main() {
 	let instance: Instance | undefined;
 	try {
-		const instanceType: _InstanceType = "c7a.xlarge";
+		const instanceType: _InstanceType = "c7a.2xlarge";
 		instance = await createEC2Instance(instanceType);
 		const instanceIp = instance?.PublicIpAddress;
 

@@ -1,4 +1,3 @@
-
 import { sleep, check } from "k6";
 import http from "k6/http";
 import query from "./planQuery.js";
@@ -27,6 +26,7 @@ function createPlanRequestsFromPreset(preset) {
 				headers: {
 					"Content-Type": "application/json",
 				},
+				timeout: "2m",
 			},
 		});
 	}
@@ -36,21 +36,25 @@ function createPlanRequestsFromPreset(preset) {
 export function runPreset(preset) {
 	const requests = createPlanRequestsFromPreset(preset);
 	const responses = http.batch(requests);
-    let allPass = true;
+	let allPass = true;
 	for (const resp of responses) {
-		allPass = allPass && check(resp, {
-			"is status 200": (r) => r.status === 200,
-			"has response body": (r) => r.body,
-			"no response error": (r) => !r.error,
-		});
+		allPass =
+			allPass &&
+			check(resp, {
+				"is status 200": (r) => r.status === 200,
+				"has response body": (r) => r.body,
+				"no response error": (r) => !r.error,
+			});
 		const responseBody = JSON.parse(resp.body).data;
 		const requestVariables = JSON.parse(resp.request.body).variables;
 
-		allPass = allPass && check(responseBody, {
-			"no graphql errors": (r) => !r.errors,
-			"no routing errors": (r) => !r.plan.routingErrors.length > 0,
-			"has itineraries": (r) => r.plan.itineraries.length > 0
-		});
+		allPass =
+			allPass &&
+			check(responseBody, {
+				"no graphql errors": (r) => !r.errors,
+				"no routing errors": (r) => !r.plan.routingErrors.length > 0,
+				"has itineraries": (r) => r.plan.itineraries.length > 0,
+			});
 		if (responseBody.plan.itineraries.length === 0) {
 			console.warn("No itineraries for modes:", requestVariables.modes);
 		}
@@ -61,7 +65,13 @@ export function runPreset(preset) {
 			console.error("Rounting errors");
 			console.error(responseBody.plan.routingErrors);
 		}
-		console.log("Ran for", requestVariables.modes, "received", responseBody.plan.itineraries.length, "itineraries.")
+		console.log(
+			"Ran for",
+			requestVariables.modes,
+			"received",
+			responseBody.plan.itineraries.length,
+			"itineraries.",
+		);
 	}
-    return allPass
+	return allPass;
 }
