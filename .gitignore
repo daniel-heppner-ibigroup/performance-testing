@@ -9,3 +9,7 @@ devenv.local.nix
 
 # pre-commit
 .pre-commit-config.yaml
+
+results/**
+
+.DS_Store

@@ -7,9 +7,11 @@ import {
 	waitUntilInstanceTerminated,
 	type RunInstancesCommandInput,
 	type Instance,
-	_InstanceType,
+	type _InstanceType,
 } from "@aws-sdk/client-ec2";
-import { getInstanceInfo } from "./instancePricing";
+import { runResultsServer } from "./resultsWriter";
+
+const server = await runResultsServer();
 
 // Configuration
 const AMI_ID_X86 = "ami-04a81a99f5ec58529";
@@ -27,60 +29,13 @@ const IAM_ROLE_NAME = "OTPPerformanceTesting_InstanceRunner";
 // Initialize AWS SDK v3 client
 const client = new EC2Client({ region: REGION });
 
-const headers = [
-	"time",
-	"instance_type",
-	"memory",
-	"vcpus",
-	"onDemandPrice",
-	"vus",
-	"avg_http_req_duration",
-	"p90_http_req_duration",
-	"p95_http_req_duration",
-].join(",");
-const resultsFileWriter = Bun.file("results.csv").writer();
-resultsFileWriter.write(headers);
-resultsFileWriter.write("\n");
-
-// Bun server for receiving k6 datares
-const server = Bun.serve({
-	port: 3000,
-	async fetch(req) {
-		if (req.method === "POST" && new URL(req.url).pathname === "/append-csv") {
-			const { summary, timestamp, instanceType } = await req.json();
-			const { metrics, vus } = summary;
-			const instanceInfo = await getInstanceInfo(instanceType);
-			const csvLine = [
-				timestamp,
-				instanceType,
-				vus,
-				instanceInfo?.memory,
-				instanceInfo?.vcpus,
-				instanceInfo?.onDemandPrice,
-				metrics.http_req_duration.values.avg,
-				metrics.http_req_duration.values["p(90)"],
-				metrics.http_req_duration.values["p(95)"],
-				metrics.http_req_waiting.values.avg,
-				metrics.http_req_waiting.values["p(90)"],
-				metrics.http_req_waiting.values["p(95)"],
-			].join(",");
-			resultsFileWriter.write(csvLine);
-			resultsFileWriter.write("\n");
-			resultsFileWriter.flush();
-			return new Response("OK", { status: 200 });
-		}
-		return new Response("Not Found", { status: 404 });
-	},
-});
-
-console.log(`Listening on http://localhost:${server.port}`);
-
 // Create a new EC2 instance
 async function createEC2Instance(
 	instanceType: _InstanceType,
+	useArmAmi = false,
 ): Promise<Instance | undefined> {
 	const params: RunInstancesCommandInput = {
-		ImageId: AMI_ID_X86,
+		ImageId: useArmAmi ? AMI_ID_ARM : AMI_ID_X86,
 		InstanceType: instanceType,
 		MinCount: 1,
 		MaxCount: 1,
@@ -230,10 +185,13 @@ async function runK6Test(url: string, instanceType: string) {
 }
 
 // Main workflow
-async function main(instanceType: _InstanceType) {
+async function main(
+	instanceType: _InstanceType,
+	useArmAmi = false,
+): Promise<void> {
 	let instance: Instance | undefined;
 	try {
-		instance = await createEC2Instance(instanceType);
+		instance = await createEC2Instance(instanceType, useArmAmi);
 		const instanceIp = instance?.PublicIpAddress;
 
 		console.log("Waiting for instance to complete boot process...");
@@ -252,10 +210,31 @@ async function main(instanceType: _InstanceType) {
 			console.log("Terminating instance...");
 			await terminateEC2Instance(instance.InstanceId);
 		}
-		server.stop();
 		console.log("Webserver stopped");
 	}
 }
 
-main("c7a.2xlarge");
-// main("r5d.2xlarge");
+await Promise.all([
+	// 
+	main("c7a.2xlarge"),
+	main("m7a.xlarge"),
+	main("m7a.2xlarge"),
+	main("m5a.xlarge"),
+	main("m5a.2xlarge"),
+	main("c6a.2xlarge"),
+	main("c6i.2xlarge"),
+	main("r5.2xlarge"),
+	main("r5a.xlarge"),
+	main("r6a.xlarge"),
+	main("c7i.2xlarge"),
+	// ARM Cpus
+	main("c7g.2xlarge", true),
+	main("c7g.4xlarge", true),
+	main("m7g.2xlarge", true),
+	main("c6g.2xlarge", true),
+	main("r7g.xlarge", true),
+	main("r7g.2xlarge", true),
+	main("r8g.xlarge", true),
+	main("r8g.2xlarge", true),
+]);
+server.stop();

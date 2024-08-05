@@ -1,4 +1,4 @@
-import { Instance, _InstanceType } from "@aws-sdk/client-ec2";
+import { Instance, type _InstanceType } from "@aws-sdk/client-ec2";
 import { parse } from "csv-parse/sync";
 
 interface InstancePricingCsv {
@@ -7,12 +7,14 @@ interface InstancePricingCsv {
 	"On Demand": string;
 	vCPUs: string;
 	"Instance Memory": string;
+	"Physical Processor": string;
 }
 
 interface InstancePricing {
 	memory: number;
 	vcpus: number;
 	onDemandPrice: number;
+	physicalProcessor: string;
 }
 
 export async function getInstanceInfo(
@@ -39,12 +41,15 @@ export async function getInstanceInfo(
 			instance["On Demand"].replace("$", "").replace(" hourly", ""),
 		);
 		const vcpus = Number.parseFloat(instance.vCPUs.replace(" vCPUs", ""));
-        const memory = Number.parseFloat(instance["Instance Memory"].replace(" GiB", ""))
+		const memory = Number.parseFloat(
+			instance["Instance Memory"].replace(" GiB", ""),
+		);
 		return {
-            onDemandPrice: price,
-            vcpus,
-            memory
-        };
+			onDemandPrice: price,
+			vcpus,
+			memory,
+			physicalProcessor: instance["Physical Processor"],
+		};
 	}
 
 	return null;
