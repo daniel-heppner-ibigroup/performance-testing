@@ -65,13 +65,13 @@ export function runPreset(preset) {
 			console.error("Rounting errors");
 			console.error(responseBody.plan.routingErrors);
 		}
-		console.log(
-			"Ran for",
-			requestVariables.modes,
-			"received",
-			responseBody.plan.itineraries.length,
-			"itineraries.",
-		);
+		// console.log(
+		// 	"Ran for",
+		// 	requestVariables.modes,
+		// 	"received",
+		// 	responseBody.plan.itineraries.length,
+		// 	"itineraries.",
+		// );
 	}
 	return allPass;
 }
