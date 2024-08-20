@@ -11,7 +11,7 @@ function createPlanRequestsFromPreset(preset) {
 			toPlace: preset.to,
 			arriveBy: false,
 			banned: {},
-			date: "2024-07-02",
+			date: "2024-08-15",
 			numItineraries: 8,
 			time: "11:27",
 		};
@@ -51,6 +51,7 @@ export function runPreset(preset) {
 		allPass =
 			allPass &&
 			check(responseBody, {
+				"has plan object": (r) => r.plan,
 				"no graphql errors": (r) => !r.errors,
 				"no routing errors": (r) => !r.plan.routingErrors.length > 0,
 				"has itineraries": (r) => r.plan.itineraries.length > 0,

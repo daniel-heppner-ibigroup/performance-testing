@@ -3,7 +3,6 @@ import { getInstanceInfo } from "./instancePricing";
 
 const headers = [
 	"time",
-	"passed",
 	"instance_type",
 	"memory",
 	"vcpus",
@@ -15,7 +14,8 @@ const headers = [
 	"avg_http_req_waiting",
 	"p90_http_req_waiting",
 	"p95_http_req_waiting",
-	"score"
+	"scoreP95",
+	"scoreAvg",
 ].join(",");
 
 // Function to get the next available results file name
@@ -43,30 +43,38 @@ export async function runResultsServer(): Promise<Server> {
 				req.method === "POST" &&
 				new URL(req.url).pathname === "/append-csv"
 			) {
-				const { summary, timestamp, instanceType } = await req.json();
-				const { metrics, vus } = summary;
+				const body = await req.json();
+				const { summary, timestamp, instanceType } = body;
+				const { metrics } = summary;
+				Bun.file("results/latest.json").writer().write(JSON.stringify(body));
+				const testFailed = metrics.checks.values.fails > 0 || metrics.http_req_failed.values.passes > 0;
+				const valOrFail = (val: string | number) => (testFailed ? "fail" : val);
 				const instanceInfo = await getInstanceInfo(instanceType);
 				const valueScore = (
 					(1000 / metrics.http_req_waiting.values["p(95)"]) *
 					(1 / (instanceInfo?.onDemandPrice || 0)) *
 					1000
 				).toFixed(2);
-				const passed = metrics.http_req_failed.thresholds['rate<0.01'].ok;
+				const valueScoreAvg = (
+					(1000 / metrics.http_req_waiting.values.avg) *
+					(1 / (instanceInfo?.onDemandPrice || 0)) *
+					1000
+				).toFixed(2);
 				const csvLine = [
 					timestamp,
-					passed,
 					instanceType,
 					instanceInfo?.memory,
 					instanceInfo?.vcpus,
 					instanceInfo?.physicalProcessor,
 					instanceInfo?.onDemandPrice,
-					metrics.http_req_duration.values.avg,
-					metrics.http_req_duration.values["p(90)"],
-					metrics.http_req_duration.values["p(95)"],
-					metrics.http_req_waiting.values.avg,
-					metrics.http_req_waiting.values["p(90)"],
-					metrics.http_req_waiting.values["p(95)"],
-					valueScore
+					valOrFail(metrics.http_req_duration.values.avg),
+					valOrFail(metrics.http_req_duration.values["p(90)"]),
+					valOrFail(metrics.http_req_duration.values["p(95)"]),
+					valOrFail(metrics.http_req_waiting.values.avg),
+					valOrFail(metrics.http_req_waiting.values["p(90)"]),
+					valOrFail(metrics.http_req_waiting.values["p(95)"]),
+					valOrFail(valueScore),
+					valOrFail(valueScoreAvg),
 				].join(",");
 				console.log(csvLine);
 				resultsFileWriter.write(csvLine);

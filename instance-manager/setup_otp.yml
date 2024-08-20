@@ -4,7 +4,7 @@
   become: yes  # This allows Ansible to use sudo
   vars:
     java_package: openjdk-21-jdk  # Adjust version as needed
-    s3_bucket: ibi-snap
+    s3_bucket: otp-performance-testing
     otp_directory: /opt/otp
     otp_jar_path: /opt/otp/otp.jar
     otp_graph_path: /opt/otp/graph.obj

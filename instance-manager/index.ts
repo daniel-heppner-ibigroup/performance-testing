@@ -70,6 +70,7 @@ async function createEC2Instance(
 		},
 	};
 
+	console.log("Creating instance", instanceType);
 	const command = new RunInstancesCommand(params);
 	const data = await client.send(command);
 	const instanceId = data.Instances?.[0].InstanceId;
@@ -208,14 +209,17 @@ async function main(
 	} finally {
 		if (instance) {
 			console.log("Terminating instance...");
-			await terminateEC2Instance(instance.InstanceId);
+			try {
+				await terminateEC2Instance(instance.InstanceId);
+			} catch (error) {
+				console.error("Instance failed to terminate:", instance.InstanceId)
+			}
 		}
-		console.log("Webserver stopped");
 	}
 }
 
 await Promise.all([
-	// 
+	// x86 instances
 	main("c7a.2xlarge"),
 	main("m7a.xlarge"),
 	main("m7a.2xlarge"),
@@ -227,6 +231,8 @@ await Promise.all([
 	main("r5a.xlarge"),
 	main("r6a.xlarge"),
 	main("c7i.2xlarge"),
+]);
+await Promise.all([
 	// ARM Cpus
 	main("c7g.2xlarge", true),
 	main("c7g.4xlarge", true),
@@ -237,4 +243,5 @@ await Promise.all([
 	main("r8g.xlarge", true),
 	main("r8g.2xlarge", true),
 ]);
+
 server.stop();

@@ -12,7 +12,10 @@ export const options = {
 	thresholds: {
 		http_req_failed: [
 			{ threshold: "rate < 0.01", abortOnFail: true, delayAbortEval: "1m" },
-		], // Error rate should be less than 10%
+		], // Error rate should be less than 1%
+		checks: [
+			{ threshold: "rate > 0.99", abortOnFail: true, delayAbortEval: "1m" },
+		], // Error rate should be less than 1%
 	},
 };
 
@@ -22,6 +25,7 @@ export default function () {
 }
 
 export function handleSummary(data) {
+	console.log(data.metrics.http_req_failed)
     if (RESULTS_URL) {
         const payload = JSON.stringify({
             timestamp: new Date().toISOString(),
