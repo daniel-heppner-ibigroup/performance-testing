@@ -231,6 +231,7 @@ await Promise.all([
 	main("r5a.xlarge"),
 	main("r6a.xlarge"),
 	main("c7i.2xlarge"),
+	main("z1d.xlarge"),
 ]);
 await Promise.all([
 	// ARM Cpus
