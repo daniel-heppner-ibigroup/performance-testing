@@ -52,6 +52,10 @@ async function createEC2Instance(
 						Key: "ibi:team-name",
 						Value: "otp-dt",
 					},
+					{
+						"Key": "CreatedBy",
+						"Value": "otpperformancetester"
+					},
 				],
 			},
 		],
